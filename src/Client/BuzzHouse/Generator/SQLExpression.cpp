@@ -786,7 +786,10 @@ void StatementGenerator::generateFuncCall(RandomGenerator & rg, const bool allow
             const CHFunction & func = rg.nextMediumNumber() < 5 ? materialize : CHFuncs[nopt];
             const uint32_t func_max_args = std::min(func.max_args, UINT32_C(5));
 
-            n_lambda = std::max(func.min_lambda_param, func.max_lambda_param > 0 ? (rg.nextSmallNumber() % func.max_lambda_param) : 0);
+            n_lambda = ((func.min_lambda_param == func.max_lambda_param && func.max_lambda_param == 1)
+                        || (func.max_lambda_param == 1 && rg.nextBool()))
+                ? 1
+                : 0;
             min_args = func.min_args;
             max_args = std::min(this->fc.max_width - this->width, func_max_args);
             sfn->set_catalog_func(static_cast<SQLFunc>(func.fnum));
@@ -794,8 +797,7 @@ void StatementGenerator::generateFuncCall(RandomGenerator & rg, const bool allow
 
         if (n_lambda > 0)
         {
-            chassert(n_lambda == 1);
-            generateLambdaCall(rg, (rg.nextSmallNumber() % 3) + 1, func_call->add_args()->mutable_lambda());
+            generateLambdaCall(rg, rg.nextBool() ? 1 : ((rg.nextSmallNumber() % 3) + 1), func_call->add_args()->mutable_lambda());
             this->width++;
             generated_params++;
         }
@@ -830,15 +832,17 @@ void StatementGenerator::generateTableFuncCall(RandomGenerator & rg, SQLTableFun
     const CHFunction & func = CHTableFuncs[next_dist(rg.generator)];
     const uint32_t func_max_args = std::min(func.max_args, UINT32_C(5));
     uint32_t generated_params = 0;
-    uint32_t n_lambda = std::max(func.min_lambda_param, func.max_lambda_param > 0 ? (rg.nextSmallNumber() % func.max_lambda_param) : 0);
-    uint32_t min_args = func.min_args;
-    uint32_t max_args = std::min(this->fc.max_width - this->width, func_max_args);
+    const uint32_t n_lambda
+        = ((func.min_lambda_param == func.max_lambda_param && func.max_lambda_param == 1) || (func.max_lambda_param == 1 && rg.nextBool()))
+        ? 1
+        : 0;
+    const uint32_t min_args = func.min_args;
+    const uint32_t max_args = std::min(this->fc.max_width - this->width, func_max_args);
 
     tfunc_call->set_func(static_cast<SQLTableFunc>(func.fnum));
     if (n_lambda > 0)
     {
-        chassert(n_lambda == 1);
-        generateLambdaCall(rg, (rg.nextSmallNumber() % 3) + 1, tfunc_call->add_args()->mutable_lambda());
+        generateLambdaCall(rg, rg.nextBool() ? 1 : ((rg.nextSmallNumber() % 3) + 1), tfunc_call->add_args()->mutable_lambda());
         this->width++;
         generated_params++;
     }
